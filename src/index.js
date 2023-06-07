@@ -1,7 +1,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import Stats from 'three/addons/libs/stats.module.js';
-import {potential} from './simulation.js'
+import { potential } from './simulation.js'
+
+let clock = new THREE.Clock();
+let delta = 0;
+// 30 fps
+let interval = 1 / 30;
+
+
 
 potential()
 
@@ -34,7 +41,7 @@ function init() {
     scene.add(light);
 
     const geometry = new THREE.IcosahedronGeometry(0.5, 2);
-    const material = new THREE.MeshBasicMaterial({ color: 0xffffff,wireframe:true });
+    const material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
 
     mesh = new THREE.Mesh(geometry, material);
     scene.add(mesh);
@@ -69,17 +76,19 @@ function onWindowResize() {
 }
 
 function animate() {
-    setTimeout(function () {
+    requestAnimationFrame(animate);
+    delta += clock.getDelta();
 
-        requestAnimationFrame(animate);
+    if (delta > interval) {
+        // The draw or time dependent code are here
+        controls.update();
 
-    }, 1000 / 60);
+        render();
 
-    controls.update();
+        stats.update();
 
-    render();
-
-    stats.update();
+        delta = delta % interval;
+    }
 
 }
 
