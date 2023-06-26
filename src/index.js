@@ -19,6 +19,8 @@ const sizes = {
     height: window.innerHeight
 }
 
+const count = 1000;
+
 var camera, scene, renderer, controls
 
 var mesh;
@@ -40,11 +42,17 @@ function init() {
     light.position.set(0, 1, 0);
     scene.add(light);
 
-    const geometry = new THREE.IcosahedronGeometry(0.5, 2);
+    const geometry = new THREE.IcosahedronGeometry(0.01, 1);
     const material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
 
-    mesh = new THREE.Mesh(geometry, material);
+    mesh = new THREE.InstancedMesh(geometry, material, count);
+    setInitialPositions(mesh, count)
     scene.add(mesh);
+
+
+
+
+
 
     renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas });
     renderer.setSize(sizes.width, sizes.height);
@@ -83,6 +91,8 @@ function animate() {
         // The draw or time dependent code are here
         controls.update();
 
+        mesh.instanceMatrix.needsUpdate = false
+
         render();
 
         stats.update();
@@ -96,4 +106,16 @@ function render() {
 
     renderer.render(scene, camera);
 
+}
+
+function setInitialPositions(mesh, count) {
+    const matrix = new THREE.Matrix4();
+    
+    for (let i = 0; i < count; i++) {
+        let x = i / count;
+        let y = i / count;
+        let z = i / count;
+        matrix.setPosition(x, y, z);
+        mesh.setMatrixAt(i, matrix);
+    }
 }
