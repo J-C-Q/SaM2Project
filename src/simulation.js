@@ -82,14 +82,16 @@ export function verletStep(r, v, T, l, dt, ff,old_ff) {
         r[i].add(v[i].clone().multiplyScalar(dt))
         r[i].add(ff[i].clone().multiplyScalar(dt * dt / 2))
     }
-    // let lambda = Math.sqrt(1 + 2 * dt / tau * (T / temperature(v) - 1))
+    let lambda = Math.sqrt(1 + 2 * dt / tau * (T / temperature(v) - 1)) 
     for (let i = 0; i < ff.length; i++) {  
         old_ff[i].copy(ff[i])   
     }
     ff = totalForce(r, l,ff)
     for (let i = 0; i < r.length; i++) {
         v[i].add(old_ff[i].add(ff[i]).multiplyScalar(dt / 2))
-        // v[i].multiplyScalar(lambda)
+        if (lambda != NaN && lambda != Infinity) {
+            v[i].multiplyScalar(lambda)
+        }
     }
     return ff
 }

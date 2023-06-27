@@ -14,8 +14,8 @@ const sizes = {
     width: window.innerWidth,
     height: window.innerHeight
 }
-
-const count = 100;
+const amount = 4
+const count = Math.pow(amount,3);
 
 var camera, scene, renderer, controls
 
@@ -23,8 +23,8 @@ var mesh;
 
 var stats;
 
-const box_size = 30
-const R = 0.7
+const box_size = 10
+const R = 0.5
 
 const simulationBoxClipPlanes = [
     new THREE.Plane(new THREE.Vector3(1, 0, 0), 0),
@@ -41,7 +41,6 @@ let v = new Array(count).fill().map(() => new THREE.Vector3())
 let f = new Array(count).fill().map(() => new THREE.Vector3())
 let last_f = new Array(count).fill().map(() => new THREE.Vector3())
 setInitialPositions(r)
-let meshPositions = new Array(27 * count).fill().map(() => new THREE.Vector3())
 
 init();
 animate();
@@ -58,19 +57,12 @@ function init() {
     light.position.set(0, 1, 0);
     scene.add(light);
 
-    const geometry = new THREE.IcosahedronGeometry(R, 2);
-    const material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: false, clippingPlanes: simulationBoxClipPlanes, side: THREE.DoubleSide });
+    const geometry = new THREE.IcosahedronGeometry(R, 10);
+    const material = new THREE.MeshPhongMaterial({ color: 0xff0000, wireframe: false, clippingPlanes: simulationBoxClipPlanes, side: THREE.DoubleSide, shadowSide: THREE.DoubleSide });
     material.onBeforeCompile = function (shader) {
         shader.fragmentShader = shader.fragmentShader.replace(
             `#include <output_fragment>`,
-            `#ifdef OPAQUE
-             diffuseColor.a = 1.0;
-             #endif
-             // https://github.com/mrdoob/three.js/pull/22425
-             #ifdef USE_TRANSMISSION
-             diffuseColor.a *= material.transmissionAlpha + 0.1;
-             #endif
-             gl_FragColor = ( gl_FrontFacing ) ? vec4( outgoingLight, diffuseColor.a ) : vec4( diffuse, 1. );
+            `gl_FragColor = ( gl_FrontFacing ) ? vec4( outgoingLight, diffuseColor.a ) : vec4( diffuse, 0.5 );
             `
         );
     };
@@ -80,17 +72,13 @@ function init() {
     adjustMeshToPositions(mesh, r)
     scene.add(mesh);
 
-    const box_geometry = new THREE.BoxGeometry(box_size, box_size, box_size);
-    box_geometry.translate(box_size / 2, box_size / 2, box_size / 2)
-    const box_edges = new THREE.EdgesGeometry(box_geometry);
-    const box_outline = new THREE.LineSegments(box_edges, new THREE.LineBasicMaterial({ color: 0xffffff }));
-    scene.add(box_outline);
-
-    const plane_geometry = new THREE.PlaneGeometry(box_size, R);
-    const plane_material = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+    const plane_geometry = new THREE.BoxGeometry(box_size, R,0.01);
+    const plane_material = new THREE.MeshPhongMaterial({ color: 0xffffff, side: THREE.DoubleSide });
     const plane = new THREE.InstancedMesh(plane_geometry, plane_material, 24);
     plane.instanceMatrix.setUsage(THREE.StaticDrawUsage);
     positionBoxEdges(plane)
+    plane.renderOrder = 999;
+
     scene.add(plane);
 
     renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas });
@@ -131,7 +119,7 @@ function animate() {
     if (delta > interval) {
         // The draw or time dependent code are here
         controls.update();
-        f = verletStep(r, v, 0.1, box_size, 0.01, f, last_f)
+        f = verletStep(r, v, 0.01, box_size, 0.05, f, last_f)
         // for (let i = 0; i < count; i++) {
         //     r[i].add(new THREE.Vector3(0.001,0.001,0.001))
         // }
@@ -176,9 +164,21 @@ function adjustMeshToPositions(mesh, r) {
 
 
 function setInitialPositions(r) {
-    for (let i = 0; i < count; i++) {
-        r[i].set(box_size * Math.random() - box_size / 2, box_size * Math.random() - box_size
-            / 2, box_size * Math.random() - box_size / 2)
+    let i = 0;
+    const spacing = box_size / amount;
+    
+    const offset = (amount - 1) / 2 + box_size / (2 * spacing);
+    for (let x = 0; x < amount; x++) {
+
+        for (let y = 0; y < amount; y++) {
+
+            for (let z = 0; z < amount; z++) {
+                r[i].set(spacing * (offset - x), spacing * (offset - y), spacing * (offset - z))
+                i++
+            }
+
+        }
+
     }
 }
 
@@ -189,83 +189,83 @@ function modulus(a, b) {
 function positionBoxEdges(plane) {
     const matrix = new THREE.Matrix4();
     const matrix2 = new THREE.Matrix4();
-    matrix.setPosition(box_size / 2, R/2, 0);
+    matrix.setPosition(box_size / 2, R / 2, 0);
     plane.setMatrixAt(0, matrix);
 
-    matrix.setPosition(box_size / 2, R/2, box_size);
+    matrix.setPosition(box_size / 2, R / 2, box_size);
     plane.setMatrixAt(1, matrix);
 
-    matrix.setPosition(box_size / 2, box_size-R/2, box_size);
+    matrix.setPosition(box_size / 2, box_size - R / 2, box_size);
     plane.setMatrixAt(2, matrix);
 
-    matrix.setPosition(box_size / 2, box_size-R/2, 0);
+    matrix.setPosition(box_size / 2, box_size - R / 2, 0);
     plane.setMatrixAt(3, matrix);
 
-    matrix.setPosition(R/2, box_size/2, 0);
+    matrix.setPosition(R / 2, box_size / 2, 0);
     matrix2.makeRotationFromEuler(new THREE.Euler(0, 0, Math.PI / 2));
     plane.setMatrixAt(4, matrix.multiply(matrix2));
 
-    matrix.setPosition(R/2, box_size/2, box_size);
+    matrix.setPosition(R / 2, box_size / 2, box_size);
     plane.setMatrixAt(5, matrix);
 
-    matrix.setPosition(box_size-R/2, box_size/2, box_size);
+    matrix.setPosition(box_size - R / 2, box_size / 2, box_size);
     plane.setMatrixAt(6, matrix);
 
-    matrix.setPosition(box_size-R/2, box_size/2, 0);
+    matrix.setPosition(box_size - R / 2, box_size / 2, 0);
     plane.setMatrixAt(7, matrix);
 
-    matrix.setPosition(0, box_size/2, R/2);
+    matrix.setPosition(0, box_size / 2, R / 2);
     matrix2.makeRotationFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
     plane.setMatrixAt(8, matrix.multiply(matrix2));
 
-    matrix.setPosition(0, box_size/2, box_size-R/2);
+    matrix.setPosition(0, box_size / 2, box_size - R / 2);
     plane.setMatrixAt(9, matrix);
 
-    matrix.setPosition(box_size, box_size/2, box_size-R/2);
+    matrix.setPosition(box_size, box_size / 2, box_size - R / 2);
     plane.setMatrixAt(10, matrix);
 
-    matrix.setPosition(box_size, box_size/2, R/2);
+    matrix.setPosition(box_size, box_size / 2, R / 2);
     plane.setMatrixAt(11, matrix);
 
     matrix.identity();
-    matrix.setPosition(0, R/2, box_size/2);
+    matrix.setPosition(0, R / 2, box_size / 2);
     matrix2.makeRotationFromEuler(new THREE.Euler(0, Math.PI / 2, 0));
     plane.setMatrixAt(12, matrix.multiply(matrix2));
 
-    matrix.setPosition(0, box_size-R/2, box_size/2);
+    matrix.setPosition(0, box_size - R / 2, box_size / 2);
     plane.setMatrixAt(13, matrix);
 
-    matrix.setPosition(box_size, box_size-R/2, box_size/2);
+    matrix.setPosition(box_size, box_size - R / 2, box_size / 2);
     plane.setMatrixAt(14, matrix);
 
-    matrix.setPosition(box_size, R/2, box_size/2);
+    matrix.setPosition(box_size, R / 2, box_size / 2);
     plane.setMatrixAt(15, matrix);
 
     matrix.identity();
-    matrix.setPosition(R/2, 0, box_size/2);
+    matrix.setPosition(R / 2, 0, box_size / 2);
     matrix2.makeRotationFromEuler(new THREE.Euler(Math.PI / 2, Math.PI / 2, 0, 'YXZ'));
     plane.setMatrixAt(16, matrix.multiply(matrix2));
 
-    matrix.setPosition(R/2, box_size, box_size/2);
+    matrix.setPosition(R / 2, box_size, box_size / 2);
     plane.setMatrixAt(17, matrix);
 
-    matrix.setPosition(box_size-R/2, box_size, box_size/2);
+    matrix.setPosition(box_size - R / 2, box_size, box_size / 2);
     plane.setMatrixAt(18, matrix);
 
-    matrix.setPosition(box_size-R/2, 0, box_size/2);
+    matrix.setPosition(box_size - R / 2, 0, box_size / 2);
     plane.setMatrixAt(19, matrix);
 
     matrix.identity();
-    matrix.setPosition(box_size/2, box_size, R/2);
+    matrix.setPosition(box_size / 2, box_size, R / 2);
     matrix2.makeRotationFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
     plane.setMatrixAt(20, matrix.multiply(matrix2));
 
-    matrix.setPosition(box_size/2, box_size, box_size-R/2);
+    matrix.setPosition(box_size / 2, box_size, box_size - R / 2);
     plane.setMatrixAt(21, matrix);
 
-    matrix.setPosition(box_size/2, 0, box_size-R/2);
+    matrix.setPosition(box_size / 2, 0, box_size - R / 2);
     plane.setMatrixAt(22, matrix);
 
-    matrix.setPosition(box_size/2, 0, R/2);
+    matrix.setPosition(box_size / 2, 0, R / 2);
     plane.setMatrixAt(23, matrix);
 }
