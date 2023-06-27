@@ -1,16 +1,12 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import Stats from 'three/addons/libs/stats.module.js';
-import { potential } from './simulation.js'
+import { verletStep } from './simulation.js'
 
 let clock = new THREE.Clock();
 let delta = 0;
 // 30 fps
 let interval = 1 / 30;
-
-
-
-potential()
 
 const canvas = document.querySelector('canvas.webgl')
 
@@ -19,7 +15,7 @@ const sizes = {
     height: window.innerHeight
 }
 
-const count = 1000;
+const count = 100;
 
 var camera, scene, renderer, controls
 
@@ -27,11 +23,23 @@ var mesh;
 
 var stats;
 
+// simulationm variables
+let r = new Array(count+1)
+let v = new Array(count+1)
+let f = new Array(count+1)
+for (let i = 0; i < count; i++) {
+    r[i] = new THREE.Vector3(0, 0, 0)
+    v[i] = new THREE.Vector3(0, 0, 0)
+    f[i] = new THREE.Vector3(0, 0, 0)
+}
+setInitialPositions(r)
+console.log(r)
+
 init();
 animate();
 
 function init() {
-
+    
     camera = new THREE.PerspectiveCamera(60, sizes.width / sizes.height, 0.1, 100);
     camera.position.set(1, 1, 1);
     camera.lookAt(0, 0, 0);
@@ -46,13 +54,8 @@ function init() {
     const material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
 
     mesh = new THREE.InstancedMesh(geometry, material, count);
-    setInitialPositions(mesh, count)
+    adjustMeshToPositions(mesh, r)
     scene.add(mesh);
-
-
-
-
-
 
     renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas });
     renderer.setSize(sizes.width, sizes.height);
@@ -82,7 +85,7 @@ function onWindowResize() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
 }
-
+let i = 0
 function animate() {
     requestAnimationFrame(animate);
     delta += clock.getDelta();
@@ -90,9 +93,16 @@ function animate() {
     if (delta > interval) {
         // The draw or time dependent code are here
         controls.update();
-
-        mesh.instanceMatrix.needsUpdate = false
-
+        // f = verletStep(r, v, 0.1, 1, 0.0001, f)
+        for (let i = 0; i < count; i++) {
+            r[i].add(0.1,0.1,0.1)
+        }
+        adjustMeshToPositions(mesh, r)
+        mesh.instanceMatrix.needsUpdate = true
+        if (i==0) {
+            console.log(r)
+            i++
+        }
         render();
 
         stats.update();
@@ -108,14 +118,21 @@ function render() {
 
 }
 
-function setInitialPositions(mesh, count) {
+function adjustMeshToPositions(mesh, r) {
     const matrix = new THREE.Matrix4();
     
     for (let i = 0; i < count; i++) {
-        let x = i / count;
-        let y = i / count;
-        let z = i / count;
-        matrix.setPosition(x, y, z);
+        matrix.setPosition(r[i]);
         mesh.setMatrixAt(i, matrix);
     }
+}
+
+function setInitialPositions(r) {
+    for (let i = 0; i < count; i++) {
+        r[i].set(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5)
+    }
+}
+
+function modulus(a,b) {
+    return ((a % b) + b) % b;
 }

@@ -12,17 +12,17 @@ const r_e = 1
 const D_e = 1
 const a = 1
 
-const neighborMatrix = [[1,0,0],[0,1,0],[0,0,1],[1,1,0],[0,1,1],[1,0,1],[1,1,1],[1,0,-1],[0,1,-1],[-1,1,0],[1,1,-1],[1,-1,1],[-1,1,1]]
+const neighborMatrix = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1], [1, 0, -1], [0, 1, -1], [-1, 1, 0], [1, 1, -1], [1, -1, 1], [-1, 1, 1]]
 
 
 
-function minimumImageDistance(ri,rj,L) {
+function minimumImageDistance(ri, rj, L) {
     let differenceVector = new THREE.Vector3().subVectors(ri, rj)
     return differenceVector.sub(differenceVector.clone().divideScalar(L).round().multiplyScalar(L))
 }
 
-function periodic(n,N) {
-  return ((n%N)+N)%N
+function periodic(n, N) {
+    return ((n % N) + N) % N
 }
 
 
@@ -44,7 +44,7 @@ function initState(n) {
 
 
 
-export function potential() {
+function potential() {
     console.log(new THREE.Vector3(0, 0, 0))
 }
 
@@ -64,8 +64,40 @@ function rij(ri, rj, l) {
     return r_ij;
 }
 
+function totalForce(r, l) {
+    let ff = [...Array(r.length)].map(e => new THREE.Vector3(0, 0, 0))
+    for (let i = 0; i < r.length - 1; i++) {
+        for (let j = i + 1; j < r.length; j++) {
+            let f = force(r[i], r[j], l)
+            ff[i].add(f)
+            ff[j].sub(f)
+        }
+    }
+    return ff
+}
 
+export function verletStep(r, v, T, l, dt, ff) {
+    let tau = 1
+    for (let i = 0; i < r.length; i++) {
+        r[i].add(v[i].clone().multiplyScalar(dt))
+        r[i].add(ff[i].clone().multiplyScalar(dt * dt / 2))
+    }
+    let lambda = Math.sqrt(1 + 2 * dt / tau * (T / temperature(v) - 1))
+    let ff_new = totalForce(r, l)
+    for (let i = 0; i < r.length; i++) {
+        v[i].add(ff[i].clone().add(ff_new[i]).multiplyScalar(dt / 2))
+        v[i].multiplyScalar(lambda)
+    }
+    return ff_new
+}
 
+function temperature(v) {
+    let sum = 0
+    for (let i = 0; i < v.length; i++) {
+        sum += v[i].lengthSq()
+    }
+    return sum / (3 * v.length - 1)
+}
 
 
 
