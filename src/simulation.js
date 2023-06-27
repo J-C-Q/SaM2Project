@@ -64,8 +64,8 @@ function rij(ri, rj, l) {
     return r_ij;
 }
 
-function totalForce(r, l) {
-    let ff = [...Array(r.length)].map(e => new THREE.Vector3(0, 0, 0))
+export function totalForce(r, l,ff) {
+    ff.forEach(e => e.set(0,0,0))
     for (let i = 0; i < r.length - 1; i++) {
         for (let j = i + 1; j < r.length; j++) {
             let f = force(r[i], r[j], l)
@@ -76,19 +76,22 @@ function totalForce(r, l) {
     return ff
 }
 
-export function verletStep(r, v, T, l, dt, ff) {
+export function verletStep(r, v, T, l, dt, ff,old_ff) {
     let tau = 1
     for (let i = 0; i < r.length; i++) {
         r[i].add(v[i].clone().multiplyScalar(dt))
         r[i].add(ff[i].clone().multiplyScalar(dt * dt / 2))
     }
-    let lambda = Math.sqrt(1 + 2 * dt / tau * (T / temperature(v) - 1))
-    let ff_new = totalForce(r, l)
-    for (let i = 0; i < r.length; i++) {
-        v[i].add(ff[i].clone().add(ff_new[i]).multiplyScalar(dt / 2))
-        v[i].multiplyScalar(lambda)
+    // let lambda = Math.sqrt(1 + 2 * dt / tau * (T / temperature(v) - 1))
+    for (let i = 0; i < ff.length; i++) {  
+        old_ff[i].copy(ff[i])   
     }
-    return ff_new
+    ff = totalForce(r, l,ff)
+    for (let i = 0; i < r.length; i++) {
+        v[i].add(old_ff[i].add(ff[i]).multiplyScalar(dt / 2))
+        // v[i].multiplyScalar(lambda)
+    }
+    return ff
 }
 
 function temperature(v) {
