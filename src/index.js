@@ -25,7 +25,7 @@ var caps;
 
 var stats;
 
-const box_size = 8
+const box_size = 10
 const R = 0.5
 
 const simulationBoxClipPlanes = [
@@ -56,7 +56,7 @@ function init() {
     scene = new THREE.Scene();
     scene.add( new THREE.AmbientLight( 0xffffff, 0.5 ) );
     const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(box_size, box_size, box_size);
+    dirLight.position.set(0, 3*box_size, 0);
     dirLight.castShadow = true;
     scene.add(dirLight);
 
@@ -77,12 +77,12 @@ function init() {
 
 
     const cap_geometry = new THREE.CircleGeometry(R, 64);
-    const cap_material = new THREE.MeshStandardMaterial({ color: 0xff0000, side: THREE.DoubleSide, clippingPlanes: simulationBoxClipPlanes });
+    const cap_material = new THREE.MeshStandardMaterial({ color: 0xff0000, side: THREE.DoubleSide, clippingPlanes: simulationBoxClipPlanes, clipShadows:true});
     caps = new THREE.InstancedMesh(cap_geometry, cap_material, 3 * 27 * count);
     caps.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     adjustMeshToPositions(mesh, r, caps)
     mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.receiveShadow = false;
     caps.castShadow = true;
     caps.receiveShadow = false;
     scene.add(caps);
@@ -105,12 +105,14 @@ function init() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.localClippingEnabled = true;
     renderer.shadowMap.enabled = true;
+    renderer.setClearColor(0xffffff);
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0, 0);
     controls.enableDamping = true;
     controls.enableZoom = true;
     controls.enablePan = false;
+    controls.maxPolarAngle = Math.PI / 2;
 
     stats = new Stats();
     document.body.appendChild(stats.dom)
@@ -139,7 +141,7 @@ function animate() {
     if (delta > interval) {
         // The draw or time dependent code are here
         controls.update();
-        f = verletStep(r, v, 0.5, box_size, 0.05, f, last_f)
+        f = verletStep(r, v, 0.5, box_size, 0.01, f, last_f)
         // for (let i = 0; i < count; i++) {
         //     r[i].add(new THREE.Vector3(0.001,0.001,0.001))
         // }
