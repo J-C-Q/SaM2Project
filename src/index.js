@@ -14,7 +14,7 @@ const sizes = {
     width: window.innerWidth,
     height: window.innerHeight
 }
-const amount = 4
+const amount = 3
 const count = Math.pow(amount,3);
 
 var camera, scene, renderer, controls
@@ -29,12 +29,12 @@ const box_size = 10
 const R = 0.5
 
 const simulationBoxClipPlanes = [
-    new THREE.Plane(new THREE.Vector3(1, 0, 0), 0),
-    new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
-    new THREE.Plane(new THREE.Vector3(0, 0, 1), 0),
-    new THREE.Plane(new THREE.Vector3(-1, 0, 0), box_size),
-    new THREE.Plane(new THREE.Vector3(0, -1, 0), box_size),
-    new THREE.Plane(new THREE.Vector3(0, 0, -1), box_size)
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), box_size/2),
+    new THREE.Plane(new THREE.Vector3(0, 1, 0), box_size/2),
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), box_size/2),
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), box_size/2),
+    new THREE.Plane(new THREE.Vector3(0, -1, 0), box_size/2),
+    new THREE.Plane(new THREE.Vector3(0, 0, -1), box_size/2)
 ]
 
 // simulationm variables
@@ -49,9 +49,9 @@ animate();
 
 function init() {
 
-    camera = new THREE.PerspectiveCamera(60, sizes.width / sizes.height, 0.01, 100);
+    camera = new THREE.PerspectiveCamera(65, sizes.width / sizes.height, 0.1, 100);
     camera.position.set(box_size, box_size, box_size);
-    camera.lookAt(box_size / 2, box_size / 2, box_size / 2);
+    camera.lookAt(0, 0, 0);
 
     scene = new THREE.Scene();
 
@@ -87,7 +87,7 @@ function init() {
     const plane = new THREE.InstancedMesh(plane_geometry, plane_material, 24);
     plane.instanceMatrix.setUsage(THREE.StaticDrawUsage);
     positionBoxEdges(plane)
-    // scene.add(plane);
+    //  scene.add(plane);
 
     
     
@@ -98,7 +98,7 @@ function init() {
     renderer.localClippingEnabled = true;
 
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(box_size / 2, box_size / 2, box_size / 2);
+    controls.target.set(0, 0, 0);
     controls.enableDamping = true;
     controls.enableZoom = true;
     controls.enablePan = false;
@@ -130,7 +130,7 @@ function animate() {
     if (delta > interval) {
         // The draw or time dependent code are here
         controls.update();
-        f = verletStep(r, v, 0.1, box_size, 0.05, f, last_f)
+        f = verletStep(r, v, 0.5, box_size, 0.05, f, last_f)
         // for (let i = 0; i < count; i++) {
         //     r[i].add(new THREE.Vector3(0.001,0.001,0.001))
         // }
@@ -166,25 +166,28 @@ function adjustMeshToPositions(mesh,r,caps) {
     const positionSphere = new THREE.Vector3();
     const eps = 0.001;
     var scale
+    const Rsquared = R * R;
     for (let x = -1; x < 2; x++) {
         for (let y = -1; y < 2; y++) {
             for (let z = -1; z < 2; z++) {
                 for (let i = 0; i < count; i++) {
                     matrix.identity();
-                    positionSphere.set(modulus(r[i].x, box_size) + x * box_size, modulus(r[i].y, box_size) + y * box_size, modulus(r[i].z, box_size) + z * box_size) 
+                    positionSphere.set(modulus(r[i].x, box_size) + x * box_size-box_size/2, modulus(r[i].y, box_size) + y * box_size-box_size/2, modulus(r[i].z, box_size) + z * box_size-box_size/2) 
                     matrix.setPosition(positionSphere);
                     mesh.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i, matrix);
 
+
+
                     matrix.identity();
                     scaleMatrix.makeScale(1, 1, 1);
-                    if (Math.abs(positionSphere.x) < R) {
-                        matrix.setPosition(eps, positionSphere.y, positionSphere.z);
-                        scale = Math.sqrt(R*R-positionSphere.x*positionSphere.x)/R
+                    if (Math.abs(positionSphere.x+box_size/2) < R) {
+                        matrix.setPosition(-box_size/2+eps, positionSphere.y, positionSphere.z);
+                        scale = Math.sqrt(Rsquared-Math.pow(positionSphere.x+box_size/2,2))/R
                         scaleMatrix.makeScale(scale,scale,scale);
                         caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i, matrix.multiply(rotationY).multiply(scaleMatrix));
-                    } else if (Math.abs(positionSphere.x-box_size) < R) {
-                        matrix.setPosition(box_size-eps, positionSphere.y, positionSphere.z);
-                        scale = Math.sqrt(R*R-(positionSphere.x-box_size)*(positionSphere.x-box_size))/R
+                    } else if (Math.abs(positionSphere.x-box_size/2) < R) {
+                        matrix.setPosition(box_size/2-eps, positionSphere.y, positionSphere.z);
+                        scale = Math.sqrt(Rsquared-Math.pow(positionSphere.x-box_size/2,2))/R
                         scaleMatrix.makeScale(scale,scale,scale);
                         caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i, matrix.multiply(rotationY).multiply(scaleMatrix));
                     } else {
@@ -193,14 +196,14 @@ function adjustMeshToPositions(mesh,r,caps) {
                     }
 
                     matrix.identity();
-                    if (Math.abs(positionSphere.y) < R) {
-                        matrix.setPosition(positionSphere.x, eps, positionSphere.z);
-                        scale = Math.sqrt(R*R-positionSphere.y*positionSphere.y)/R
+                    if (Math.abs(positionSphere.y+box_size/2) < R) {
+                        matrix.setPosition(positionSphere.x, -box_size/2+eps, positionSphere.z);
+                        scale = Math.sqrt(Rsquared-Math.pow(positionSphere.y+box_size/2,2))/R
                         scaleMatrix.makeScale(scale,scale,scale);
                         caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 27*count, matrix.multiply(rotationX).multiply(scaleMatrix));
-                    } else if (Math.abs(positionSphere.y-box_size) < R) {
-                        matrix.setPosition(positionSphere.x, box_size-eps, positionSphere.z);
-                        scale = Math.sqrt(R*R-(positionSphere.y-box_size)*(positionSphere.y-box_size))/R
+                    } else if (Math.abs(positionSphere.y-box_size/2) < R) {
+                        matrix.setPosition(positionSphere.x, box_size/2-eps, positionSphere.z);
+                        scale = Math.sqrt(Rsquared-Math.pow(positionSphere.y-box_size/2,2))/R
                         scaleMatrix.makeScale(scale,scale,scale);
                         caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 27*count, matrix.multiply(rotationX).multiply(scaleMatrix));
                     } else {
@@ -209,14 +212,14 @@ function adjustMeshToPositions(mesh,r,caps) {
                     }
 
                     matrix.identity();
-                    if (Math.abs(positionSphere.z) < R) {
-                        matrix.setPosition(positionSphere.x, positionSphere.y, eps);
-                        scale = Math.sqrt(R*R-positionSphere.z*positionSphere.z)/R
+                    if (Math.abs(positionSphere.z+box_size/2) < R) {
+                        matrix.setPosition(positionSphere.x, positionSphere.y, -box_size/2+eps);
+                        scale = Math.sqrt(Rsquared-Math.pow(positionSphere.z+box_size/2,2))/R
                         scaleMatrix.makeScale(scale,scale,scale);
                         caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 2*27*count, matrix.multiply(rotationZ).multiply(scaleMatrix));
-                    } else if (Math.abs(positionSphere.z-box_size) < R) {
-                        matrix.setPosition(positionSphere.x, positionSphere.y, box_size-eps);
-                        scale = Math.sqrt(R*R-(positionSphere.z-box_size)*(positionSphere.z-box_size))/R
+                    } else if (Math.abs(positionSphere.z-box_size/2) < R) {
+                        matrix.setPosition(positionSphere.x, positionSphere.y, box_size/2-eps);
+                        scale = Math.sqrt(Rsquared-Math.pow(positionSphere.z-box_size/2,2))/R
                         scaleMatrix.makeScale(scale,scale,scale);
                         caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 2*27*count, matrix.multiply(rotationZ).multiply(scaleMatrix));
                     } else {
@@ -241,7 +244,7 @@ function setInitialPositions(r) {
         for (let y = 0; y < amount; y++) {
 
             for (let z = 0; z < amount; z++) {
-                r[i].set(spacing * (offset - x), spacing * (offset - y), spacing * (offset - z))
+                r[i].set(spacing * (offset - x)-box_size/2, spacing * (offset - y)-box_size/2, spacing * (offset - z)-box_size/2)
                 i++
             }
 
