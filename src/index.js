@@ -14,7 +14,7 @@ const sizes = {
     width: window.innerWidth,
     height: window.innerHeight
 }
-const amount = 3
+const amount = 2
 const count = Math.pow(amount, 3);
 
 var camera, scene, renderer, controls
@@ -54,11 +54,17 @@ function init() {
     camera.lookAt(0, 0, 0);
 
     scene = new THREE.Scene();
-    scene.add( new THREE.AmbientLight( 0xffffff, 0.5 ) );
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(0, 3*box_size, 0);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
+    // scene.add( new THREE.AmbientLight( 0xffffff, 0.5 ) );
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(0, 3*box_size, 0);
+    light.castShadow = true;
+    scene.add(light);
+
+    //Set up shadow properties for the light
+    light.shadow.mapSize.width = 8*512; // default
+    light.shadow.mapSize.height = 8*512; // default
+    light.shadow.camera.near = 0.5; // default
+    light.shadow.camera.far = 500; // default
 
 
     const geometry = new THREE.IcosahedronGeometry(R, 10);
@@ -83,7 +89,7 @@ function init() {
     adjustMeshToPositions(mesh, r, caps)
     mesh.castShadow = true;
     mesh.receiveShadow = false;
-    caps.castShadow = true;
+    caps.castShadow = false;
     caps.receiveShadow = false;
     scene.add(caps);
     scene.add(mesh);
@@ -175,7 +181,7 @@ function adjustMeshToPositions(mesh, r, caps) {
     const rotationZ = new THREE.Matrix4().makeRotationZ(Math.PI / 2);
     const scaleMatrix = new THREE.Matrix4().makeScale(1, 1, 1);
     const positionSphere = new THREE.Vector3();
-    const eps = 0.001;
+    const eps = 0.00001;
     var scale
     const Rsquared = R * R;
     for (let x = -1; x < 2; x++) {
@@ -268,86 +274,3 @@ function modulus(a, b) {
     return ((a % b) + b) % b;
 }
 
-function positionBoxEdges(plane) {
-    const matrix = new THREE.Matrix4();
-    const matrix2 = new THREE.Matrix4();
-    matrix.setPosition(box_size / 2 - box_size / 2, R / 2 - box_size / 2, 0 - box_size / 2);
-    plane.setMatrixAt(0, matrix);
-
-    matrix.setPosition(box_size / 2 - box_size / 2, R / 2 - box_size / 2, box_size - box_size / 2);
-    plane.setMatrixAt(1, matrix);
-
-    matrix.setPosition(box_size / 2 - box_size / 2, box_size - R / 2 - box_size / 2, box_size - box_size / 2);
-    plane.setMatrixAt(2, matrix);
-
-    matrix.setPosition(box_size / 2 - box_size / 2, box_size - R / 2 - box_size / 2, 0 - box_size / 2);
-    plane.setMatrixAt(3, matrix);
-
-    matrix.setPosition(R / 2 - box_size / 2, box_size / 2 - box_size / 2, 0 - box_size / 2);
-    matrix2.makeRotationFromEuler(new THREE.Euler(0, 0, Math.PI / 2));
-    plane.setMatrixAt(4, matrix.multiply(matrix2));
-
-    matrix.setPosition(R / 2 - box_size / 2, box_size / 2 - box_size / 2, box_size - box_size / 2);
-    plane.setMatrixAt(5, matrix);
-
-    matrix.setPosition(box_size - R / 2 - box_size / 2, box_size / 2 - box_size / 2, box_size - box_size / 2);
-    plane.setMatrixAt(6, matrix);
-
-    matrix.setPosition(box_size - R / 2 - box_size / 2, box_size / 2 - box_size / 2, 0 - box_size / 2);
-    plane.setMatrixAt(7, matrix);
-
-    matrix.setPosition(0 - box_size / 2, box_size / 2 - box_size / 2, R / 2 - box_size / 2);
-    matrix2.makeRotationFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
-    plane.setMatrixAt(8, matrix.multiply(matrix2));
-
-    matrix.setPosition(0 - box_size / 2, box_size / 2 - box_size / 2, box_size - R / 2 - box_size / 2);
-    plane.setMatrixAt(9, matrix);
-
-    matrix.setPosition(box_size - box_size / 2, box_size / 2 - box_size / 2, box_size - R / 2 - box_size / 2);
-    plane.setMatrixAt(10, matrix);
-
-    matrix.setPosition(box_size - box_size / 2, box_size / 2 - box_size / 2, R / 2 - box_size / 2);
-    plane.setMatrixAt(11, matrix);
-
-    matrix.identity();
-    matrix.setPosition(0 - box_size / 2, R / 2 - box_size / 2, box_size / 2 - box_size / 2);
-    matrix2.makeRotationFromEuler(new THREE.Euler(0, Math.PI / 2, 0));
-    plane.setMatrixAt(12, matrix.multiply(matrix2));
-
-    matrix.setPosition(0 - box_size / 2, box_size - R / 2 - box_size / 2, box_size / 2 - box_size / 2);
-    plane.setMatrixAt(13, matrix);
-
-    matrix.setPosition(box_size, box_size - R / 2, box_size / 2);
-    plane.setMatrixAt(14, matrix);
-
-    matrix.setPosition(box_size, R / 2, box_size / 2);
-    plane.setMatrixAt(15, matrix);
-
-    matrix.identity();
-    matrix.setPosition(R / 2, 0, box_size / 2);
-    matrix2.makeRotationFromEuler(new THREE.Euler(Math.PI / 2, Math.PI / 2, 0, 'YXZ'));
-    plane.setMatrixAt(16, matrix.multiply(matrix2));
-
-    matrix.setPosition(R / 2, box_size, box_size / 2);
-    plane.setMatrixAt(17, matrix);
-
-    matrix.setPosition(box_size - R / 2, box_size, box_size / 2);
-    plane.setMatrixAt(18, matrix);
-
-    matrix.setPosition(box_size - R / 2, 0, box_size / 2);
-    plane.setMatrixAt(19, matrix);
-
-    matrix.identity();
-    matrix.setPosition(box_size / 2, box_size, R / 2);
-    matrix2.makeRotationFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
-    plane.setMatrixAt(20, matrix.multiply(matrix2));
-
-    matrix.setPosition(box_size / 2, box_size, box_size - R / 2);
-    plane.setMatrixAt(21, matrix);
-
-    matrix.setPosition(box_size / 2, 0, box_size - R / 2);
-    plane.setMatrixAt(22, matrix);
-
-    matrix.setPosition(box_size / 2, 0, R / 2);
-    plane.setMatrixAt(23, matrix);
-}
