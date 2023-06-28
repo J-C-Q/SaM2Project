@@ -21,6 +21,8 @@ var camera, scene, renderer, controls
 
 var mesh;
 
+var caps;
+
 var stats;
 
 const box_size = 10
@@ -47,7 +49,7 @@ animate();
 
 function init() {
 
-    camera = new THREE.PerspectiveCamera(60, sizes.width / sizes.height, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(60, sizes.width / sizes.height, 0.01, 100);
     camera.position.set(box_size, box_size, box_size);
     camera.lookAt(box_size / 2, box_size / 2, box_size / 2);
 
@@ -59,27 +61,36 @@ function init() {
 
     const geometry = new THREE.IcosahedronGeometry(R, 10);
     const material = new THREE.MeshPhongMaterial({ color: 0xff0000, wireframe: false, clippingPlanes: simulationBoxClipPlanes, side: THREE.DoubleSide, shadowSide: THREE.DoubleSide });
-    material.onBeforeCompile = function (shader) {
-        shader.fragmentShader = shader.fragmentShader.replace(
-            `#include <output_fragment>`,
-            `gl_FragColor = ( gl_FrontFacing ) ? vec4( outgoingLight, diffuseColor.a ) : vec4( diffuse, 0.5 );
-            `
-        );
-    };
+    // material.onBeforeCompile = function (shader) {
+    //     shader.fragmentShader = shader.fragmentShader.replace(
+    //         `#include <output_fragment>`,
+    //         `gl_FragColor = ( gl_FrontFacing ) ? vec4( outgoingLight, diffuseColor.a ) : vec4( diffuse, 0.5 );
+    //         `
+    //     );
+    // };
 
     mesh = new THREE.InstancedMesh(geometry, material, 27 * count);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    adjustMeshToPositions(mesh, r)
+    
+
+
+    const cap_geometry = new THREE.CircleGeometry(R, 32);
+    const cap_material = new THREE.MeshPhongMaterial({ color: 0xff0000, side: THREE.DoubleSide, clippingPlanes: simulationBoxClipPlanes });
+    caps = new THREE.InstancedMesh(cap_geometry, cap_material, 3*27*count);
+    caps.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    adjustMeshToPositions(mesh, r,caps)
+    scene.add(caps);
     scene.add(mesh);
 
-    const plane_geometry = new THREE.BoxGeometry(box_size, R,0.01);
+    const plane_geometry = new THREE.PlaneGeometry(box_size, R);
     const plane_material = new THREE.MeshPhongMaterial({ color: 0xffffff, side: THREE.DoubleSide });
     const plane = new THREE.InstancedMesh(plane_geometry, plane_material, 24);
     plane.instanceMatrix.setUsage(THREE.StaticDrawUsage);
     positionBoxEdges(plane)
-    plane.renderOrder = 999;
+    // scene.add(plane);
 
-    scene.add(plane);
+    
+    
 
     renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas });
     renderer.setSize(sizes.width, sizes.height);
@@ -119,14 +130,15 @@ function animate() {
     if (delta > interval) {
         // The draw or time dependent code are here
         controls.update();
-        f = verletStep(r, v, 0.01, box_size, 0.05, f, last_f)
+        f = verletStep(r, v, 0.1, box_size, 0.05, f, last_f)
         // for (let i = 0; i < count; i++) {
         //     r[i].add(new THREE.Vector3(0.001,0.001,0.001))
         // }
         // totalForce(r, box_size,f)
         // console.log(f[0].clone())
-        adjustMeshToPositions(mesh, r)
+        adjustMeshToPositions(mesh, r,caps)
         mesh.instanceMatrix.needsUpdate = true
+        caps.instanceMatrix.needsUpdate = true
         render();
 
         // console.log(r[0].clone())
@@ -145,17 +157,73 @@ function render() {
 
 }
 
-function adjustMeshToPositions(mesh, r) {
+function adjustMeshToPositions(mesh,r,caps) {
     const matrix = new THREE.Matrix4();
-
+    const rotationX = new THREE.Matrix4().makeRotationX(Math.PI / 2);
+    const rotationY = new THREE.Matrix4().makeRotationY(Math.PI / 2);
+    const rotationZ = new THREE.Matrix4().makeRotationZ(Math.PI / 2);
+    const scaleMatrix = new THREE.Matrix4().makeScale(1, 1, 1);
+    const positionSphere = new THREE.Vector3();
+    const eps = 0.001;
+    var scale
     for (let x = -1; x < 2; x++) {
         for (let y = -1; y < 2; y++) {
             for (let z = -1; z < 2; z++) {
                 for (let i = 0; i < count; i++) {
-                    matrix.setPosition(modulus(r[i].x, box_size) + x * box_size, modulus(r[i].y, box_size) + y * box_size, modulus(r[i].z, box_size) + z * box_size);
+                    matrix.identity();
+                    positionSphere.set(modulus(r[i].x, box_size) + x * box_size, modulus(r[i].y, box_size) + y * box_size, modulus(r[i].z, box_size) + z * box_size) 
+                    matrix.setPosition(positionSphere);
                     mesh.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i, matrix);
-                }
 
+                    matrix.identity();
+                    scaleMatrix.makeScale(1, 1, 1);
+                    if (Math.abs(positionSphere.x) < R) {
+                        matrix.setPosition(eps, positionSphere.y, positionSphere.z);
+                        scale = Math.sqrt(R*R-positionSphere.x*positionSphere.x)/R
+                        scaleMatrix.makeScale(scale,scale,scale);
+                        caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i, matrix.multiply(rotationY).multiply(scaleMatrix));
+                    } else if (Math.abs(positionSphere.x-box_size) < R) {
+                        matrix.setPosition(box_size-eps, positionSphere.y, positionSphere.z);
+                        scale = Math.sqrt(R*R-(positionSphere.x-box_size)*(positionSphere.x-box_size))/R
+                        scaleMatrix.makeScale(scale,scale,scale);
+                        caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i, matrix.multiply(rotationY).multiply(scaleMatrix));
+                    } else {
+                        matrix.setPosition(-box_size, -box_size, -box_size);
+                        caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i, matrix);
+                    }
+
+                    matrix.identity();
+                    if (Math.abs(positionSphere.y) < R) {
+                        matrix.setPosition(positionSphere.x, eps, positionSphere.z);
+                        scale = Math.sqrt(R*R-positionSphere.y*positionSphere.y)/R
+                        scaleMatrix.makeScale(scale,scale,scale);
+                        caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 27*count, matrix.multiply(rotationX).multiply(scaleMatrix));
+                    } else if (Math.abs(positionSphere.y-box_size) < R) {
+                        matrix.setPosition(positionSphere.x, box_size-eps, positionSphere.z);
+                        scale = Math.sqrt(R*R-(positionSphere.y-box_size)*(positionSphere.y-box_size))/R
+                        scaleMatrix.makeScale(scale,scale,scale);
+                        caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 27*count, matrix.multiply(rotationX).multiply(scaleMatrix));
+                    } else {
+                        matrix.setPosition(-box_size, -box_size, -box_size);
+                        caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 27*count, matrix);
+                    }
+
+                    matrix.identity();
+                    if (Math.abs(positionSphere.z) < R) {
+                        matrix.setPosition(positionSphere.x, positionSphere.y, eps);
+                        scale = Math.sqrt(R*R-positionSphere.z*positionSphere.z)/R
+                        scaleMatrix.makeScale(scale,scale,scale);
+                        caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 2*27*count, matrix.multiply(rotationZ).multiply(scaleMatrix));
+                    } else if (Math.abs(positionSphere.z-box_size) < R) {
+                        matrix.setPosition(positionSphere.x, positionSphere.y, box_size-eps);
+                        scale = Math.sqrt(R*R-(positionSphere.z-box_size)*(positionSphere.z-box_size))/R
+                        scaleMatrix.makeScale(scale,scale,scale);
+                        caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 2*27*count, matrix.multiply(rotationZ).multiply(scaleMatrix));
+                    } else {
+                        matrix.setPosition(-box_size, -box_size, -box_size);
+                        caps.setMatrixAt((x + 1 + (y + 1) * 3 + (z + 1) * 9) * count + i + 2*27*count, matrix);
+                    }
+                }
             }
         }
     }
