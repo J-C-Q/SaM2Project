@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import Stats from 'three/addons/libs/stats.module.js';
+import WebGPU from 'three/addons/capabilities/WebGPU.js';
+import WebGPURenderer from 'three/addons/renderers/webgpu/WebGPURenderer.js';
+
 import { verletStep, totalForce } from './simulation.js'
 
 let clock = new THREE.Clock();
@@ -49,6 +52,14 @@ animate();
 
 function init() {
 
+    if ( WebGPU.isAvailable() === false ) {
+
+        document.body.appendChild( WebGPU.getErrorMessage() );
+
+        throw new Error( 'No WebGPU support' );
+
+    }
+
     camera = new THREE.PerspectiveCamera(65, sizes.width / sizes.height, 0.1, 100);
     camera.position.set(box_size, box_size, box_size);
     camera.lookAt(0, 0, 0);
@@ -56,19 +67,19 @@ function init() {
     scene = new THREE.Scene();
     // scene.add( new THREE.AmbientLight( 0xffffff, 0.5 ) );
     const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(0, 3*box_size, 0);
+    light.position.set(0, 3 * box_size, 0);
     light.castShadow = true;
     scene.add(light);
 
     //Set up shadow properties for the light
-    light.shadow.mapSize.width = 8*512; // default
-    light.shadow.mapSize.height = 8*512; // default
+    light.shadow.mapSize.width = 8 * 512; // default
+    light.shadow.mapSize.height = 8 * 512; // default
     light.shadow.camera.near = 0.5; // default
     light.shadow.camera.far = 500; // default
 
 
     const geometry = new THREE.IcosahedronGeometry(R, 10);
-    const material = new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: false, clippingPlanes: simulationBoxClipPlanes, side: THREE.DoubleSide});
+    const material = new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: false, clippingPlanes: simulationBoxClipPlanes, side: THREE.DoubleSide });
     // material.onBeforeCompile = function (shader) {
     //     shader.fragmentShader = shader.fragmentShader.replace(
     //         `#include <output_fragment>`,
@@ -83,7 +94,7 @@ function init() {
 
 
     const cap_geometry = new THREE.CircleGeometry(R, 64);
-    const cap_material = new THREE.MeshStandardMaterial({ color: 0xff0000, side: THREE.DoubleSide, clippingPlanes: simulationBoxClipPlanes, clipShadows:true});
+    const cap_material = new THREE.MeshStandardMaterial({ color: 0xff0000, side: THREE.DoubleSide, clippingPlanes: simulationBoxClipPlanes, clipShadows: true });
     caps = new THREE.InstancedMesh(cap_geometry, cap_material, 3 * 27 * count);
     caps.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     adjustMeshToPositions(mesh, r, caps)
@@ -106,12 +117,14 @@ function init() {
 
 
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas });
+    renderer = new WebGPURenderer();
     renderer.setSize(sizes.width, sizes.height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.localClippingEnabled = true;
-    renderer.shadowMap.enabled = true;
-    renderer.setClearColor(0xffffff);
+    // renderer.localClippingEnabled = true;
+    // renderer.shadowMap.enabled = true;
+    renderer.setClearColor(0x000000);
+    renderer.setAnimationLoop( animate );
+    document.body.appendChild( renderer.domElement );
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0, 0);
@@ -119,7 +132,7 @@ function init() {
     controls.enableZoom = true;
     controls.enablePan = false;
     controls.maxPolarAngle = Math.PI / 2;
-
+    console.log("test")
     stats = new Stats();
     document.body.appendChild(stats.dom)
 
@@ -141,12 +154,19 @@ function onWindowResize() {
 }
 
 function animate() {
-    requestAnimationFrame(animate);
-    delta += clock.getDelta();
+    // requestAnimationFrame(animate);
+    render();
+    controls.update();
+    stats.update();
+    
+}
 
-    if (delta > interval) {
+async function render() {
+    // delta += clock.getDelta();
+
+    // if (delta > interval) {
         // The draw or time dependent code are here
-        controls.update();
+        
         f = verletStep(r, v, 0.5, box_size, 0.01, f, last_f)
         // for (let i = 0; i < count; i++) {
         //     r[i].add(new THREE.Vector3(0.001,0.001,0.001))
@@ -156,21 +176,16 @@ function animate() {
         adjustMeshToPositions(mesh, r, caps)
         mesh.instanceMatrix.needsUpdate = true
         caps.instanceMatrix.needsUpdate = true
-        render();
-
+        
+    
         // console.log(r[0].clone())
 
 
-        stats.update();
+        
 
-        delta = delta % interval;
-    }
-
-}
-
-function render() {
-
-    renderer.render(scene, camera);
+    //     delta = delta % interval;
+    // }
+   await  renderer.render(scene, camera);
 
 }
 
