@@ -14,7 +14,7 @@ const sizes = {
     width: window.innerWidth,
     height: window.innerHeight
 }
-const amount = 2
+const amount = 4 // should be odd (otheriwse there is a bug when moving the canera to some angles)
 const count = Math.pow(amount, 3);
 
 var camera, scene, renderer, controls
@@ -54,17 +54,17 @@ function init() {
     camera.lookAt(0, 0, 0);
 
     scene = new THREE.Scene();
-    // scene.add( new THREE.AmbientLight( 0xffffff, 0.5 ) );
+    scene.add( new THREE.AmbientLight( 0xffffff, 0.5 ) );
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(0, 3*box_size, 0);
     light.castShadow = true;
     scene.add(light);
 
     //Set up shadow properties for the light
-    light.shadow.mapSize.width = 8*512; // default
-    light.shadow.mapSize.height = 8*512; // default
-    light.shadow.camera.near = 0.5; // default
-    light.shadow.camera.far = 500; // default
+    // light.shadow.mapSize.width = 16; // default
+    // light.shadow.mapSize.height = 16; // default
+    // light.shadow.camera.near = 0.5; // default
+    // light.shadow.camera.far = 500; // default
 
 
     const geometry = new THREE.IcosahedronGeometry(R, 10);
@@ -147,7 +147,7 @@ function animate() {
     if (delta > interval) {
         // The draw or time dependent code are here
         controls.update();
-        f = verletStep(r, v, 0.5, box_size, 0.01, f, last_f)
+        // f = verletStep(r, v, 0.5, box_size, 0.01, f, last_f)
         // for (let i = 0; i < count; i++) {
         //     r[i].add(new THREE.Vector3(0.001,0.001,0.001))
         // }
@@ -253,15 +253,15 @@ function adjustMeshToPositions(mesh, r, caps) {
 
 function setInitialPositions(r) {
     let i = 0;
-    const spacing = box_size / amount;
+    const spacing = box_size / (amount);
 
-    const offset = (amount - 1) / 2 + box_size / (2 * spacing);
+    const offset = 0//(amount - 1) / 2 + box_size / (2 * spacing);
     for (let x = 0; x < amount; x++) {
 
         for (let y = 0; y < amount; y++) {
 
             for (let z = 0; z < amount; z++) {
-                r[i].set(spacing * (offset - x) - box_size / 2, spacing * (offset - y) - box_size / 2, spacing * (offset - z) - box_size / 2)
+                r[i].set(spacing * x, spacing * y, spacing * z)
                 i++
             }
 
